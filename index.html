@@ -2,17 +2,18 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Narrative Navigator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body, html {
             margin: 0; padding: 0;
-            width: 100%; height: 100%;
+            width: 100%; height: 100dvh; /* 适配移动端动态视口高度 */
             overflow: hidden;
             background-color: #050a14;
             font-family: 'Segoe UI', system-ui, sans-serif;
             user-select: none;
+            -webkit-tap-highlight-color: transparent; /* 移除手机点击闪烁 */
         }
 
         /* ----- 游戏化 UI 专属样式 ----- */
@@ -34,6 +35,7 @@
         
         .cyber-btn { background-color: #22d3ee; color: #000; font-weight: 900; transition: all 0.2s; }
         .cyber-btn:hover { background-color: #67e8f9; transform: scale(1.02); }
+        .cyber-btn:active { transform: scale(0.98); }
         .cyber-btn-red { background-color: #f87171; color: #000; font-weight: 900; }
         .cyber-btn-green { background-color: #4ade80; color: #000; font-weight: 900; }
 
@@ -56,9 +58,9 @@
             100% { transform: scale(1.2) rotate(0deg); color: #4ade80; }
         }
 
-        .progress-dot { width: 10px; height: 10px; border-radius: 50%; background-color: #334155; position: relative; z-index: 2; }
+        .progress-dot { width: 10px; height: 10px; border-radius: 50%; background-color: #334155; position: relative; z-index: 2; transition: all 0.3s; }
         .progress-dot.active { background-color: #22d3ee; box-shadow: 0 0 8px #22d3ee; }
-        .progress-line { height: 2px; background-color: #334155; flex-grow: 1; margin: 0 -2px; z-index: 1; }
+        .progress-line { height: 2px; background-color: #334155; flex-grow: 1; margin: 0 -2px; z-index: 1; transition: all 0.3s; }
         .progress-line.active { background-color: #22d3ee; }
         
         .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -67,21 +69,22 @@
 </head>
 <body>
 
+    <!-- 主交互界面：适配了全宽度移动屏以及居中限宽桌面屏 -->
     <div class="absolute inset-0 z-10 flex justify-center bg-[#050a14] text-slate-300 font-mono-cyber overflow-hidden">
         <div class="scanline"></div>
-        <div class="relative w-full max-w-sm h-full cyber-panel flex flex-col p-5 shadow-2xl border-x border-[#1e293b]">
+        <div class="relative w-full md:max-w-[400px] h-full cyber-panel flex flex-col p-4 sm:p-5 shadow-2xl md:border-x border-[#1e293b]">
             
             <!-- 顶部状态栏、退回按钮及语言切换 -->
             <div class="flex justify-between items-center text-[10px] mb-4 text-slate-500 h-4 relative">
                 <div class="w-16 flex items-center">
                     <span id="time-display">9:41</span>
-                    <button id="back-btn" class="hidden text-cyan-400 hover:text-cyan-200 font-bold tracking-widest transition-colors z-20 focus:outline-none">
+                    <button id="back-btn" class="hidden text-cyan-400 hover:text-cyan-200 font-bold tracking-widest transition-colors z-20 focus:outline-none py-1">
                         &lt; <span id="back-text">BACK</span>
                     </button>
                 </div>
                 
                 <!-- 语言切换按钮 -->
-                <button id="lang-btn" class="absolute left-1/2 -translate-x-1/2 border border-cyan-800 text-cyan-500 bg-cyan-950/30 px-2.5 py-0.5 rounded text-[8px] font-bold tracking-widest hover:bg-cyan-900/50 transition-colors z-20 focus:outline-none">
+                <button id="lang-btn" class="absolute left-1/2 -translate-x-1/2 border border-cyan-800 text-cyan-500 bg-cyan-950/30 px-3 py-1 rounded text-[8px] font-bold tracking-widest hover:bg-cyan-900/50 transition-colors z-20 focus:outline-none">
                     EN / 中
                 </button>
 
@@ -89,11 +92,11 @@
             </div>
 
             <!-- 动态内容注入 -->
-            <div id="screen-content" class="flex-1 flex flex-col overflow-y-auto pb-24 no-scrollbar transition-opacity duration-300">
+            <div id="screen-content" class="flex-1 flex flex-col overflow-y-auto pb-28 no-scrollbar transition-opacity duration-300">
             </div>
 
             <!-- 底部导航 & 进度 -->
-            <div class="absolute bottom-5 left-5 right-5 bg-[#0b1320] pt-2">
+            <div class="absolute bottom-4 sm:bottom-5 left-4 sm:left-5 right-4 sm:right-5 bg-[#0b1320] pt-2">
                 <div class="mb-4 relative">
                     <div class="absolute -top-7 left-1 flex items-end z-10">
                         <span id="progress-title" class="text-[8px] text-slate-500 tracking-widest uppercase">EXTRACTION PROGRESS</span>
@@ -107,7 +110,7 @@
                         <!-- 动态注入标签 -->
                     </div>
                 </div>
-                <button id="action-btn" class="w-full py-4 rounded text-sm tracking-widest cyber-btn uppercase">
+                <button id="action-btn" class="w-full py-3.5 sm:py-4 rounded text-sm tracking-widest cyber-btn uppercase focus:outline-none">
                     > START SEARCH
                 </button>
                 <div class="text-center text-[8px] text-slate-600 mt-2 tracking-widest" id="page-indicator">1 / 6</div>
@@ -115,12 +118,45 @@
         </div>
     </div>
 
+    <!-- 全局图片放大模态框 (Image Lightbox) -->
+    <div id="image-modal" class="fixed inset-0 z-[100] hidden bg-[#050a14]/95 backdrop-blur-md flex items-center justify-center opacity-0 transition-opacity duration-300" onclick="closeImageModal()">
+        <button class="absolute top-6 right-6 text-slate-400 hover:text-cyan-400 p-2 z-50 transition-colors focus:outline-none bg-black/50 rounded-full">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+        <img id="modal-image" src="" class="max-w-[95%] max-h-[85vh] object-contain scale-95 transition-transform duration-300 shadow-[0_0_30px_rgba(34,211,238,0.15)] border border-slate-700/50 rounded" alt="Enlarged view" onclick="event.stopPropagation()">
+    </div>
+
     <!-- ==================== 逻辑脚本 ==================== -->
     <script>
         let globalTargetCode = ""; 
         let globalBaseCode = "NA 997";
         let currentStep = 0;
-        let currentLang = 'ZH'; // 默认中文，可切换为 'EN'
+        let currentLang = 'ZH'; 
+
+        // 打开全屏图片逻辑
+        function openImageModal(src) {
+            const imageModal = document.getElementById('image-modal');
+            const modalImage = document.getElementById('modal-image');
+            modalImage.src = src;
+            imageModal.classList.remove('hidden');
+            // 触发回流重绘以执行 CSS 过渡
+            void imageModal.offsetWidth;
+            imageModal.classList.remove('opacity-0');
+            modalImage.classList.remove('scale-95');
+            modalImage.classList.add('scale-100');
+        }
+
+        // 关闭全屏图片逻辑
+        function closeImageModal() {
+            const imageModal = document.getElementById('image-modal');
+            const modalImage = document.getElementById('modal-image');
+            imageModal.classList.add('opacity-0');
+            modalImage.classList.remove('scale-100');
+            modalImage.classList.add('scale-95');
+            setTimeout(() => {
+                imageModal.classList.add('hidden');
+            }, 300);
+        }
 
         function getScreenData(step) {
             const isZH = currentLang === 'ZH';
@@ -135,14 +171,14 @@
                             <div class="p-3 cyber-border-cyan rounded-md bg-[#0a111a] mb-4 shadow-[0_0_15px_rgba(34,211,238,0.15)] flex flex-col justify-center min-h-[70px]">
                                 <div class="flex items-center">
                                     <span class="text-lg cyber-text-cyan font-bold mr-3">></span>
-                                    <input type="text" id="init-input" value="${globalTargetCode}" class="w-full bg-transparent text-lg cyber-text-cyan font-bold tracking-widest outline-none border-none placeholder:text-cyan-900/50 placeholder:text-[10px] placeholder:font-normal placeholder:tracking-normal" placeholder="${isZH ? '请填写您需要查询的编号' : 'Please fill in the book number.'}" autocomplete="off"/>
+                                    <input type="text" id="init-input" value="${globalTargetCode}" class="w-full bg-transparent text-base sm:text-lg cyber-text-cyan font-bold tracking-widest outline-none border-none placeholder:text-cyan-900/50 placeholder:text-[10px] placeholder:font-normal placeholder:tracking-normal" placeholder="${isZH ? '请填写您需要查询的编号' : 'Please fill in the book number.'}" autocomplete="off"/>
                                 </div>
                                 <span class="text-[8px] text-slate-500 ml-6 mt-1">${isZH ? '书籍编号' : 'CALL NUMBER'}</span>
                             </div>
 
                             <div class="mb-4">
                                 <p class="text-[8px] text-slate-500 mb-1 tracking-widest">${isZH ? '搜索记录：' : 'RECENT:'}</p>
-                                <div class="flex gap-2">
+                                <div class="flex flex-wrap gap-2">
                                     <div class="border border-slate-700 bg-[#0f172a] rounded px-2 py-1.5 text-[8px] text-slate-400">720.95957 SIN</div>
                                     <div class="border border-slate-700 bg-[#0f172a] rounded px-2 py-1.5 text-[8px] text-slate-400">330.122 TAN</div>
                                     <div class="border border-slate-700 bg-[#0f172a] rounded px-2 py-1.5 text-[8px] text-slate-400">005.13 KNU</div>
@@ -173,7 +209,6 @@
                             
                             <div class="p-3 border border-slate-700 rounded-md bg-[#0f172a] mb-4 min-h-[60px] flex flex-col justify-center">
                                 <p class="text-[8px] text-slate-500 mb-1">${isZH ? '书籍编号' : 'CALL NO.'}</p>
-                                <!-- 这里已经去除了默认值，完全绑定用户在第一步输入的 globalTargetCode -->
                                 <p class="text-base text-slate-200 font-bold tracking-wider">${globalTargetCode}</p>
                             </div>
 
@@ -211,15 +246,17 @@
                         html: `
                             <h2 class="text-xs text-slate-200 tracking-widest font-bold mb-4">${isZH ? '系统指引 #1' : 'SYSTEM PING #1'}<br><span class="text-[10px] text-slate-500">${isZH ? '第一段路径 • 三楼' : 'WAYPOINT ALPHA • LEVEL 8 LIFT LOBBY'}</span></h2>
                             
-                            <!-- 引入本地图片 1.JPG -->
-                            <div class="relative w-full h-40 border border-slate-700 bg-[#0a0f1a] rounded mb-4 overflow-hidden flex items-center justify-center">
-                                <img src="1.JPG" class="opacity-80 object-cover w-full h-full" alt="Location Photo">
-                                <div class="absolute w-12 h-12 border-2 border-cyan-500 rounded-full animate-pulse opacity-80 flex items-center justify-center">
-                                    <div class="w-1 h-3 bg-cyan-500 absolute top-[-6px]"></div><div class="w-1 h-3 bg-cyan-500 absolute bottom-[-6px]"></div>
-                                    <div class="w-3 h-1 bg-cyan-500 absolute left-[-6px]"></div><div class="w-3 h-1 bg-cyan-500 absolute right-[-6px]"></div>
+                            <!-- 本地图片 1.JPG - 支持点击放大 -->
+                            <div class="relative w-full h-40 border border-slate-700 bg-[#0a0f1a] rounded mb-4 overflow-hidden flex items-center justify-center cursor-pointer group" onclick="openImageModal('1.JPG')">
+                                <img src="1.JPG" class="opacity-80 object-cover w-full h-full group-hover:opacity-100 transition-opacity duration-300" alt="Location Photo">
+                                
+                                <!-- 悬浮放大图标反馈 -->
+                                <div class="absolute inset-0 bg-[#0a111a]/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 backdrop-blur-[1px]">
+                                    <svg class="w-8 h-8 text-cyan-400 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path></svg>
                                 </div>
-                                <div class="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-cyan-400"></div>
-                                <div class="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-cyan-400"></div>
+                                
+                                <div class="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-cyan-400 z-20 pointer-events-none"></div>
+                                <div class="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-cyan-400 z-20 pointer-events-none"></div>
                             </div>
 
                             <div class="p-3 cyber-border-cyan rounded-md bg-[#0a111a] mb-3 relative overflow-hidden">
@@ -250,7 +287,7 @@
                                 <p class="text-[11px] cyber-text-green font-bold flex items-center gap-2">✓ ${isZH ? '第一段路径解锁成功' : 'WAYPOINT ALPHA CLEARED'}</p>
                                 <div class="flex items-center gap-2 mt-2">
                                     <span class="text-[8px] text-slate-500">${isZH ? '同步: 50%' : 'SYNCING: 50%'}</span>
-                                    <div class="h-1.5 w-24 bg-green-900/50 rounded overflow-hidden"><div class="h-full bg-green-500 w-1/2"></div></div>
+                                    <div class="h-1.5 w-full max-w-[120px] bg-green-900/50 rounded overflow-hidden"><div class="h-full bg-green-500 w-1/2"></div></div>
                                 </div>
                             </div>
 
@@ -281,24 +318,25 @@
                         html: `
                             <h2 class="text-xs text-slate-200 tracking-widest font-bold mb-4">${isZH ? '目标已锁定' : 'TARGET LOCKED'}<br><span class="text-[10px] text-slate-500">${isZH ? '最终提取 • 书架 ' : 'FINAL EXTRACTION • SHELF '}${shelfCode}</span></h2>
                             
-                            <!-- 引入本地图片 2.JPG 和 3.JPG (左右布局) -->
+                            <!-- 本地图片 2.JPG 和 3.JPG (左右布局) - 支持分别点击放大 -->
                             <div class="relative w-full h-48 border border-slate-700 bg-[#0a0f1a] rounded mb-4 flex overflow-hidden">
                                 <!-- 左图 -->
-                                <div class="w-1/2 h-full border-r border-slate-700">
-                                    <img src="2.JPG" class="opacity-80 object-cover w-full h-full" alt="Shelf Left">
+                                <div class="w-1/2 h-full border-r border-slate-700 relative group cursor-pointer" onclick="openImageModal('2.JPG')">
+                                    <img src="2.JPG" class="opacity-80 object-cover w-full h-full group-hover:opacity-100 transition-opacity duration-300" alt="Shelf Left">
+                                    <div class="absolute inset-0 bg-[#0a111a]/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 backdrop-blur-[1px]">
+                                        <svg class="w-6 h-6 text-cyan-400 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path></svg>
+                                    </div>
                                 </div>
                                 <!-- 右图 -->
-                                <div class="w-1/2 h-full">
-                                    <img src="3.JPG" class="opacity-80 object-cover w-full h-full" alt="Shelf Right">
-                                </div>
-
-                                <!-- 居中目标锁定框 -->
-                                <div class="absolute border border-red-500 text-red-500 text-[10px] px-4 py-2 bg-red-900/30 flex items-center gap-2 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 backdrop-blur-sm">
-                                    ${isZH ? '目标物' : 'TARGET ASSET'} <div class="w-3 h-3 rounded-full border border-red-500 flex items-center justify-center opacity-80"><div class="w-0.5 h-full bg-red-500"></div><div class="w-full h-0.5 bg-red-500 absolute"></div></div>
+                                <div class="w-1/2 h-full relative group cursor-pointer" onclick="openImageModal('3.JPG')">
+                                    <img src="3.JPG" class="opacity-80 object-cover w-full h-full group-hover:opacity-100 transition-opacity duration-300" alt="Shelf Right">
+                                    <div class="absolute inset-0 bg-[#0a111a]/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 backdrop-blur-[1px]">
+                                        <svg class="w-6 h-6 text-cyan-400 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path></svg>
+                                    </div>
                                 </div>
                                 
-                                <div class="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-slate-600 z-10"></div>
-                                <div class="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-slate-600 z-10"></div>
+                                <div class="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-slate-600 z-20 pointer-events-none"></div>
+                                <div class="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-slate-600 z-20 pointer-events-none"></div>
                             </div>
 
                             <p class="text-[10px] cyber-text-red mb-1 font-bold flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span> ${isZH ? '目标物已定位' : 'ASSET LOCATED'}</p>
@@ -306,8 +344,7 @@
                                 <table class="text-[10px] text-red-200 w-full leading-loose">
                                     <tr><td class="w-12 font-bold text-red-300">${isZH ? '书架:' : 'SHELF:'}</td><td class="font-bold">${shelfCode}</td></tr>
                                     <tr><td class="w-12 text-red-400">${isZH ? '书名:' : 'SPINE:'}</td><td class="text-red-400">Architects from House to the City</td></tr>
-                                    <!-- 这里的索书号也完全绑定了用户的输入 -->
-                                    <tr><td class="w-12 text-red-400">${isZH ? '索书号:' : 'CODE:'}</td><td class="text-red-400">${globalTargetCode}</td></tr>
+                                    <tr><td class="w-12 text-red-400">${isZH ? '索书号:' : 'CODE:'}</td><td class="text-red-400 break-words">${globalTargetCode}</td></tr>
                                 </table>
                             </div>
 
@@ -378,7 +415,6 @@
             const data = getScreenData(currentStep);
             const isZH = currentLang === 'ZH';
             
-            // 顶部退回按钮显示控制
             if (currentStep > 0) {
                 backBtn.classList.remove('hidden');
                 timeDisplay.classList.add('hidden');
@@ -393,7 +429,6 @@
                 screenContent.innerHTML = data.html;
                 screenContent.style.opacity = 1;
                 
-                // 给输入框绑定更新事件
                 if(currentStep === 0) {
                     const inputEl = document.getElementById('init-input');
                     if(inputEl) {
@@ -404,11 +439,10 @@
                 }
             }, 150);
 
-            actionBtn.className = `w-full py-4 rounded text-sm tracking-widest uppercase mt-2 ${data.btnClass}`;
+            actionBtn.className = `w-full py-3.5 sm:py-4 rounded text-sm tracking-widest uppercase mt-2 focus:outline-none ${data.btnClass}`;
             actionBtn.innerText = data.btnText;
             pageIndicator.innerText = `${currentStep + 1} / 6`;
 
-            // 进度条渲染
             let dotsHTML = '';
             for(let i=0; i<6; i++) {
                 const isActive = i <= currentStep;
@@ -420,14 +454,12 @@
             }
             progressBar.innerHTML = dotsHTML;
 
-            // 进度条标签渲染翻译
             const labels = isZH ? 
                 ['输入', '简介', '线索 1', '线索 2', '目标', '完成'] : 
                 ['INPUT', 'BRIEF', 'PING 1', 'PING 2', 'TARGET', 'DONE'];
             progressLabels.innerHTML = labels.map(l => `<span>${l}</span>`).join('');
             progressTitle.innerText = isZH ? '进度提取' : 'EXTRACTION PROGRESS';
 
-            // 百分比与锁动画
             const percentage = Math.round((currentStep / 5) * 100);
             const progressText = document.getElementById('progress-text');
             progressText.innerText = percentage + '%';
@@ -443,16 +475,13 @@
             }
         }
 
-        // 初始化
         renderScreen();
 
-        // 语言切换逻辑
         langBtn.addEventListener('click', () => {
             currentLang = currentLang === 'ZH' ? 'EN' : 'ZH';
             renderScreen();
         });
 
-        // 返回上一层
         backBtn.addEventListener('click', () => {
             if (currentStep > 0) {
                 currentStep--;
@@ -460,17 +489,14 @@
             }
         });
 
-        // 进入下一层
         actionBtn.addEventListener('click', () => {
             if (currentStep === 0) {
                 const inputEl = document.getElementById('init-input');
                 
-                // 表单校验：如果为空，则阻止进入下一步，并给予红框警告和动画反馈
                 if (!inputEl || inputEl.value.trim() === "") {
                     inputEl.parentElement.parentElement.classList.add('border', 'border-red-500', 'bg-red-950/30');
                     inputEl.placeholder = currentLang === 'ZH' ? '必须输入编号才能继续！' : 'Input required to proceed!';
                     
-                    // 添加轻微的拒绝抖动特效
                     const panel = inputEl.parentElement.parentElement;
                     panel.style.transition = 'transform 0.1s';
                     panel.style.transform = 'translateX(5px)';
@@ -478,10 +504,9 @@
                     setTimeout(() => panel.style.transform = 'translateX(5px)', 200);
                     setTimeout(() => panel.style.transform = 'translateX(0)', 300);
                     
-                    return; // 核心逻辑：中断函数，禁止前进
+                    return; 
                 }
                 
-                // 记录用户成功输入的内容
                 globalTargetCode = inputEl.value.trim().toUpperCase();
                 
                 let parts = globalTargetCode.split(' ');
