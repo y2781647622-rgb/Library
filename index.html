@@ -1,1 +1,506 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Narrative Navigator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body, html {
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
+            overflow: hidden;
+            background-color: #050a14;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            user-select: none;
+        }
 
+        /* ----- 游戏化 UI 专属样式 ----- */
+        .font-mono-cyber { font-family: 'Courier New', Courier, monospace; }
+        .cyber-panel { background-color: #0b1320; border: 1px solid #1e293b; }
+        .cyber-border-cyan { border: 1px solid #22d3ee; }
+        .cyber-border-blue { border: 1px solid #3b82f6; }
+        .cyber-border-orange { border: 1px solid #fb923c; }
+        .cyber-border-purple { border: 1px solid #a855f7; }
+        .cyber-border-green { border: 1px solid #4ade80; }
+        .cyber-border-red { border: 1px solid #f87171; }
+        
+        .cyber-text-cyan { color: #22d3ee; }
+        .cyber-text-blue { color: #60a5fa; }
+        .cyber-text-orange { color: #fb923c; }
+        .cyber-text-purple { color: #c084fc; }
+        .cyber-text-green { color: #4ade80; }
+        .cyber-text-red { color: #f87171; }
+        
+        .cyber-btn { background-color: #22d3ee; color: #000; font-weight: 900; transition: all 0.2s; }
+        .cyber-btn:hover { background-color: #67e8f9; transform: scale(1.02); }
+        .cyber-btn-red { background-color: #f87171; color: #000; font-weight: 900; }
+        .cyber-btn-green { background-color: #4ade80; color: #000; font-weight: 900; }
+
+        .scanline {
+            width: 100%; height: 2px;
+            background-color: rgba(34, 211, 238, 0.1);
+            position: absolute; top: 0; left: 0;
+            animation: scan 4s linear infinite;
+            pointer-events: none;
+            z-index: 50;
+        }
+        @keyframes scan {
+            0% { transform: translateY(-100px); }
+            100% { transform: translateY(100vh); }
+        }
+
+        @keyframes unlockBurst {
+            0% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.5) rotate(-10deg); color: #4ade80; text-shadow: 0 0 15px #4ade80; }
+            100% { transform: scale(1.2) rotate(0deg); color: #4ade80; }
+        }
+
+        .progress-dot { width: 10px; height: 10px; border-radius: 50%; background-color: #334155; position: relative; z-index: 2; }
+        .progress-dot.active { background-color: #22d3ee; box-shadow: 0 0 8px #22d3ee; }
+        .progress-line { height: 2px; background-color: #334155; flex-grow: 1; margin: 0 -2px; z-index: 1; }
+        .progress-line.active { background-color: #22d3ee; }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body>
+
+    <div class="absolute inset-0 z-10 flex justify-center bg-[#050a14] text-slate-300 font-mono-cyber overflow-hidden">
+        <div class="scanline"></div>
+        <div class="relative w-full max-w-sm h-full cyber-panel flex flex-col p-5 shadow-2xl border-x border-[#1e293b]">
+            
+            <!-- 顶部状态栏、退回按钮及语言切换 -->
+            <div class="flex justify-between items-center text-[10px] mb-4 text-slate-500 h-4 relative">
+                <div class="w-16 flex items-center">
+                    <span id="time-display">9:41</span>
+                    <button id="back-btn" class="hidden text-cyan-400 hover:text-cyan-200 font-bold tracking-widest transition-colors z-20 focus:outline-none">
+                        &lt; <span id="back-text">BACK</span>
+                    </button>
+                </div>
+                
+                <!-- 语言切换按钮 -->
+                <button id="lang-btn" class="absolute left-1/2 -translate-x-1/2 border border-cyan-800 text-cyan-500 bg-cyan-950/30 px-2.5 py-0.5 rounded text-[8px] font-bold tracking-widest hover:bg-cyan-900/50 transition-colors z-20 focus:outline-none">
+                    EN / 中
+                </button>
+
+                <span class="cyber-text-cyan tracking-widest">III 100%</span>
+            </div>
+
+            <!-- 动态内容注入 -->
+            <div id="screen-content" class="flex-1 flex flex-col overflow-y-auto pb-24 no-scrollbar transition-opacity duration-300">
+            </div>
+
+            <!-- 底部导航 & 进度 -->
+            <div class="absolute bottom-5 left-5 right-5 bg-[#0b1320] pt-2">
+                <div class="mb-4 relative">
+                    <div class="absolute -top-7 left-1 flex items-end z-10">
+                        <span id="progress-title" class="text-[8px] text-slate-500 tracking-widest uppercase">EXTRACTION PROGRESS</span>
+                    </div>
+                    <div class="absolute -top-7 right-0 flex items-end gap-1.5 z-10">
+                        <span id="progress-text" class="text-[10px] font-bold tracking-widest text-cyan-500 mb-[2px] transition-colors">0%</span>
+                        <div id="lock-icon" class="text-sm transition-colors duration-300 text-slate-600">🔒</div>
+                    </div>
+                    <div id="progress-bar" class="flex items-center justify-between px-2 mt-1"></div>
+                    <div id="progress-labels" class="flex justify-between text-[8px] text-slate-500 mt-2 px-1 relative">
+                        <!-- 动态注入标签 -->
+                    </div>
+                </div>
+                <button id="action-btn" class="w-full py-4 rounded text-sm tracking-widest cyber-btn uppercase">
+                    > START SEARCH
+                </button>
+                <div class="text-center text-[8px] text-slate-600 mt-2 tracking-widest" id="page-indicator">1 / 6</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 逻辑脚本 ==================== -->
+    <script>
+        let globalTargetCode = ""; 
+        let globalBaseCode = "NA 997";
+        let currentStep = 0;
+        let currentLang = 'ZH'; // 默认中文，可切换为 'EN'
+
+        function getScreenData(step) {
+            const isZH = currentLang === 'ZH';
+
+            switch(step) {
+                case 0:
+                    return {
+                        html: `
+                            <h2 class="text-xs cyber-text-cyan tracking-widest font-bold mb-4">NARRATIVE NAVIGATOR<br><span class="text-[10px] text-slate-500">${isZH ? '图书馆路线查找系统 v2.1' : 'LIBRARY WAYFINDING SYSTEM v2.1'}</span></h2>
+                            
+                            <p class="text-[10px] text-slate-400 mb-2 animate-pulse">// ${isZH ? '请输入要查找的书籍编号' : 'ENTER CALL NUMBER TO BEGIN'}</p>
+                            <div class="p-3 cyber-border-cyan rounded-md bg-[#0a111a] mb-4 shadow-[0_0_15px_rgba(34,211,238,0.15)] flex flex-col justify-center min-h-[70px]">
+                                <div class="flex items-center">
+                                    <span class="text-lg cyber-text-cyan font-bold mr-3">></span>
+                                    <input type="text" id="init-input" value="${globalTargetCode}" class="w-full bg-transparent text-lg cyber-text-cyan font-bold tracking-widest outline-none border-none placeholder:text-cyan-900/50 placeholder:text-[10px] placeholder:font-normal placeholder:tracking-normal" placeholder="${isZH ? '请填写您需要查询的编号' : 'Please fill in the book number.'}" autocomplete="off"/>
+                                </div>
+                                <span class="text-[8px] text-slate-500 ml-6 mt-1">${isZH ? '书籍编号' : 'CALL NUMBER'}</span>
+                            </div>
+
+                            <div class="mb-4">
+                                <p class="text-[8px] text-slate-500 mb-1 tracking-widest">${isZH ? '搜索记录：' : 'RECENT:'}</p>
+                                <div class="flex gap-2">
+                                    <div class="border border-slate-700 bg-[#0f172a] rounded px-2 py-1.5 text-[8px] text-slate-400">720.95957 SIN</div>
+                                    <div class="border border-slate-700 bg-[#0f172a] rounded px-2 py-1.5 text-[8px] text-slate-400">330.122 TAN</div>
+                                    <div class="border border-slate-700 bg-[#0f172a] rounded px-2 py-1.5 text-[8px] text-slate-400">005.13 KNU</div>
+                                </div>
+                            </div>
+
+                            <div class="p-3 cyber-border-orange rounded-md bg-[#1a150b] mb-4">
+                                <p class="text-[10px] cyber-text-orange font-bold mb-1">${isZH ? '情报发现' : 'BONUS INTEL DETECTED'}</p>
+                                <p class="text-[10px] text-orange-200/60 leading-relaxed">${isZH ? '完成任务以解锁隐藏在提取点的专业图书馆机密' : 'Complete the mission to unlock Pro-Library secrets hidden at the extraction point.'}</p>
+                            </div>
+
+                            <div class="p-3 cyber-border-blue rounded-md bg-[#0b121e]">
+                                <p class="text-[10px] cyber-text-cyan font-bold mb-2">${isZH ? '如何读取书籍编号' : 'HOW TO READ YOUR CALL NUMBER'}</p>
+                                <table class="text-[10px] text-slate-400 w-full leading-relaxed">
+                                    <tr><td class="w-16 pb-1">NA</td><td>${isZH ? '主题（建筑学）' : 'Subject (Architecture)'}</td></tr>
+                                    <tr><td class="pb-1">997 R64</td><td>${isZH ? '分类编号' : 'Subdivision'}</td></tr>
+                                    <tr><td class="pb-1">RIC</td><td>${isZH ? '作者简写' : 'Author code'}</td></tr>
+                                </table>
+                            </div>
+                        `,
+                        btnText: isZH ? '> 开始搜索' : '> START SEARCH', 
+                        btnClass: 'cyber-btn'
+                    };
+                case 1:
+                    return {
+                        html: `
+                            <h2 class="text-xs cyber-text-cyan tracking-widest font-bold mb-4">${isZH ? '目标已识别' : 'TARGET IDENTIFIED'}<br><span class="text-[10px] text-slate-500">${isZH ? '路径已计算 • 准备执行提取' : 'ROUTE CALCULATED - READY TO EXTRACT'}</span></h2>
+                            
+                            <div class="p-3 border border-slate-700 rounded-md bg-[#0f172a] mb-4 min-h-[60px] flex flex-col justify-center">
+                                <p class="text-[8px] text-slate-500 mb-1">${isZH ? '书籍编号' : 'CALL NO.'}</p>
+                                <!-- 这里已经去除了默认值，完全绑定用户在第一步输入的 globalTargetCode -->
+                                <p class="text-base text-slate-200 font-bold tracking-wider">${globalTargetCode}</p>
+                            </div>
+
+                            <p class="text-[11px] text-slate-400 leading-relaxed mb-4">${isZH ? '请跟随系统指引前往 <span class="text-white font-bold">档案区</span>。<br>我们已为你规划最优路径。' : 'Follow the system pings to find the <span class="text-white font-bold">Archives</span>.<br>We\'ve mapped the quickest route.'}</p>
+                            
+                            <div class="p-3 cyber-border-purple rounded-md bg-[#1a0b2e] mb-4">
+                                <p class="text-[10px] cyber-text-purple font-bold mb-1">${isZH ? '发现情报' : 'BONUS INTEL DETECTED'}</p>
+                                <p class="text-[10px] text-purple-200/60">${isZH ? '完成任务以解锁<br><span class="font-bold">>>> 图书馆隐藏秘密 <<<</span>' : 'Complete extraction to unlock<br><span class="font-bold">>>> PRO-LIBRARY SECRETS <<<</span>'}</p>
+                            </div>
+
+                            <h3 class="text-[10px] text-slate-500 mb-2 tracking-widest">${isZH ? '任务步骤' : 'MISSION STEPS'}</h3>
+                            <div class="space-y-2">
+                                <div class="p-2.5 bg-[#0f172a] rounded border border-slate-800 flex flex-col gap-1">
+                                    <span class="text-[10px] cyber-text-cyan font-bold">${isZH ? '线索 #1' : 'PING #1'}</span>
+                                    <span class="text-[10px] text-slate-400">${isZH ? '前往 H-N 区域书架' : 'Navigate to the shelf labelled H-N'}</span>
+                                </div>
+                                <div class="p-2.5 bg-[#0f172a] rounded border border-slate-800 flex flex-col gap-1">
+                                    <span class="text-[10px] cyber-text-cyan font-bold">${isZH ? '线索 #2' : 'PING #2'}</span>
+                                    <span class="text-[10px] text-slate-400">${isZH ? `找到放置 ${globalBaseCode.split(' ')[0]} 分类的书架` : `Locate shelf ${globalBaseCode.split(' ')[0]}`}</span>
+                                </div>
+                                <div class="p-2.5 bg-[#0f172a] rounded border border-slate-800 flex flex-col gap-1">
+                                    <span class="text-[10px] cyber-text-orange font-bold">${isZH ? '提取' : 'EXTRACT'}</span>
+                                </div>
+                                <div class="p-2.5 bg-[#0f172a] rounded border border-slate-800 flex flex-col gap-1">
+                                    <span class="text-[10px] cyber-text-purple font-bold">${isZH ? '奖励' : 'REWARD'}</span>
+                                    <span class="text-[10px] text-slate-400">${isZH ? '解锁图书馆秘密情报' : 'Unlock Pro-Level Intel'}</span>
+                                </div>
+                            </div>
+                        `,
+                        btnText: isZH ? '> 开始执行' : '> BEGIN EXTRACTION', 
+                        btnClass: 'cyber-btn'
+                    };
+                case 2:
+                    return {
+                        html: `
+                            <h2 class="text-xs text-slate-200 tracking-widest font-bold mb-4">${isZH ? '系统指引 #1' : 'SYSTEM PING #1'}<br><span class="text-[10px] text-slate-500">${isZH ? '第一段路径 • 三楼' : 'WAYPOINT ALPHA • LEVEL 8 LIFT LOBBY'}</span></h2>
+                            
+                            <!-- 引入本地图片 1.JPG -->
+                            <div class="relative w-full h-40 border border-slate-700 bg-[#0a0f1a] rounded mb-4 overflow-hidden flex items-center justify-center">
+                                <img src="1.JPG" class="opacity-80 object-cover w-full h-full" alt="Location Photo">
+                                <div class="absolute w-12 h-12 border-2 border-cyan-500 rounded-full animate-pulse opacity-80 flex items-center justify-center">
+                                    <div class="w-1 h-3 bg-cyan-500 absolute top-[-6px]"></div><div class="w-1 h-3 bg-cyan-500 absolute bottom-[-6px]"></div>
+                                    <div class="w-3 h-1 bg-cyan-500 absolute left-[-6px]"></div><div class="w-3 h-1 bg-cyan-500 absolute right-[-6px]"></div>
+                                </div>
+                                <div class="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-cyan-400"></div>
+                                <div class="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-cyan-400"></div>
+                            </div>
+
+                            <div class="p-3 cyber-border-cyan rounded-md bg-[#0a111a] mb-3 relative overflow-hidden">
+                                <p class="text-[10px] cyber-text-cyan mb-2 flex items-center gap-2 font-bold"><span class="w-2 h-2 rounded-full bg-cyan-400"></span> ${isZH ? '当前任务目标' : 'ACTIVE WAYPOINT'}</p>
+                                <p class="text-[11px] text-cyan-50 font-bold mb-1">${isZH ? '前往 H-N 区域书架。' : 'Head to the shelf labelled H-N'}</p>
+                                <p class="text-[10px] text-cyan-200/60 leading-relaxed">${isZH ? '寻找参考指南 (reference guide)<br>一旦定位成功，系统将解锁新的坐标' : 'Look for the REFERENCE GUIDE to unlock your next coordinates.'}</p>
+                            </div>
+
+                            <div class="p-3 cyber-border-cyan rounded-md bg-[#0a111a]">
+                                <p class="text-[10px] text-slate-400 mb-2 font-bold tracking-widest">${isZH ? '路径提示' : 'ROUTE HINT'}</p>
+                                <ul class="text-[10px] text-slate-300 space-y-2">
+                                    <li class="flex items-start gap-2"><span class="text-cyan-400">↑</span> ${isZH ? '寻找贴在书架旁边的H-N的参考指南' : 'Look for REFERENCE GUIDE H-N placed on the shelf\'s side'}</li>
+                                    <li class="flex items-start gap-2"><span class="text-cyan-400">◉</span> ${isZH ? '从该书架的右侧进入' : 'Enter the aisle to the RIGHT of the shelf labelled H-N'}</li>
+                                </ul>
+                            </div>
+                            
+                            <p class="text-center text-[9px] text-slate-500 mt-4">${isZH ? '继续前请确认你的位置' : 'Confirm your location before continuing.'}</p>
+                        `,
+                        btnText: isZH ? '> 我已到达' : '> I REACHED THE POINT', 
+                        btnClass: 'cyber-btn'
+                    };
+                case 3:
+                    return {
+                        html: `
+                            <h2 class="text-xs text-slate-200 tracking-widest font-bold mb-4">${isZH ? '链接已确认' : 'HANDSHAKE CONFIRMED'}<br><span class="text-[10px] text-slate-500">${isZH ? '路线数据同步中 • 50% 已完成' : 'SYNCING ROUTE DATA • 50% COMPLETE'}</span></h2>
+                            
+                            <div class="p-3 cyber-border-green rounded-md bg-[#061e12] mb-4">
+                                <p class="text-[11px] cyber-text-green font-bold flex items-center gap-2">✓ ${isZH ? '第一段路径解锁成功' : 'WAYPOINT ALPHA CLEARED'}</p>
+                                <div class="flex items-center gap-2 mt-2">
+                                    <span class="text-[8px] text-slate-500">${isZH ? '同步: 50%' : 'SYNCING: 50%'}</span>
+                                    <div class="h-1.5 w-24 bg-green-900/50 rounded overflow-hidden"><div class="h-full bg-green-500 w-1/2"></div></div>
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <p class="text-[9px] cyber-text-purple font-bold mb-1 tracking-widest">${isZH ? '情报已解锁' : 'INTEL UNLOCKED'}</p>
+                                <div class="p-3 cyber-border-purple rounded-md bg-[#1a0b2e]">
+                                    <p class="text-[11px] text-purple-300 font-bold mb-2">${isZH ? '你已进入“空中花园”！' : 'YOU\'RE IN THE SKY GARDEN!'}</p>
+                                    <p class="text-[10px] text-purple-200/80 leading-relaxed">${isZH ? '在学术图书馆中，索书号的 ‘H’ 代表社会科学，‘N’ 代表艺术与建筑。' : 'In academic libraries, the \'H\' stands for Social Sciences while the \'N\' stand for Arts and Architecture!'}</p>
+                                </div>
+                            </div>
+
+                            <div>
+                                <p class="text-[9px] cyber-text-cyan font-bold mb-1 tracking-widest">${isZH ? '下一个任务目标' : 'NEXT OBJECTIVE'}</p>
+                                <div class="p-3 cyber-border-cyan rounded-md bg-[#0a111a]">
+                                    <p class="text-[11px] cyber-text-cyan font-bold mb-2">${isZH ? '区域：' : 'SECTOR: '} ${globalBaseCode.split(' ')[0]}</p>
+                                    <p class="text-[10px] text-slate-300 leading-relaxed">${isZH ? '走过内置的阅读座椅。<br>寻找中间段为绿色的那个书架。' : 'Navigate past the built-in reading seat.<br>Locate the shelf with a green middle-section.'}</p>
+                                </div>
+                            </div>
+
+                            <p class="text-[8px] text-slate-600 mt-4 uppercase tracking-widest border-b border-slate-800 pb-1 inline-block">${isZH ? '路径：第3层 > 拱形区域 > NA区' : 'PATH: LEVEL 3 > ARCHIVE > SECTION H'}</p>
+                        `,
+                        btnText: isZH ? '> 我已定位目标书架' : '> GET FINAL COORDINATES', 
+                        btnClass: 'cyber-btn'
+                    };
+                case 4:
+                    const shelfCode = globalBaseCode.split(' ')[0];
+                    return {
+                        html: `
+                            <h2 class="text-xs text-slate-200 tracking-widest font-bold mb-4">${isZH ? '目标已锁定' : 'TARGET LOCKED'}<br><span class="text-[10px] text-slate-500">${isZH ? '最终提取 • 书架 ' : 'FINAL EXTRACTION • SHELF '}${shelfCode}</span></h2>
+                            
+                            <!-- 引入本地图片 2.JPG 和 3.JPG (左右布局) -->
+                            <div class="relative w-full h-48 border border-slate-700 bg-[#0a0f1a] rounded mb-4 flex overflow-hidden">
+                                <!-- 左图 -->
+                                <div class="w-1/2 h-full border-r border-slate-700">
+                                    <img src="2.JPG" class="opacity-80 object-cover w-full h-full" alt="Shelf Left">
+                                </div>
+                                <!-- 右图 -->
+                                <div class="w-1/2 h-full">
+                                    <img src="3.JPG" class="opacity-80 object-cover w-full h-full" alt="Shelf Right">
+                                </div>
+
+                                <!-- 居中目标锁定框 -->
+                                <div class="absolute border border-red-500 text-red-500 text-[10px] px-4 py-2 bg-red-900/30 flex items-center gap-2 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 backdrop-blur-sm">
+                                    ${isZH ? '目标物' : 'TARGET ASSET'} <div class="w-3 h-3 rounded-full border border-red-500 flex items-center justify-center opacity-80"><div class="w-0.5 h-full bg-red-500"></div><div class="w-full h-0.5 bg-red-500 absolute"></div></div>
+                                </div>
+                                
+                                <div class="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-slate-600 z-10"></div>
+                                <div class="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-slate-600 z-10"></div>
+                            </div>
+
+                            <p class="text-[10px] cyber-text-red mb-1 font-bold flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span> ${isZH ? '目标物已定位' : 'ASSET LOCATED'}</p>
+                            <div class="p-3 cyber-border-red rounded-md bg-[#2a0b0b] mb-6">
+                                <table class="text-[10px] text-red-200 w-full leading-loose">
+                                    <tr><td class="w-12 font-bold text-red-300">${isZH ? '书架:' : 'SHELF:'}</td><td class="font-bold">${shelfCode}</td></tr>
+                                    <tr><td class="w-12 text-red-400">${isZH ? '书名:' : 'SPINE:'}</td><td class="text-red-400">Architects from House to the City</td></tr>
+                                    <!-- 这里的索书号也完全绑定了用户的输入 -->
+                                    <tr><td class="w-12 text-red-400">${isZH ? '索书号:' : 'CODE:'}</td><td class="text-red-400">${globalTargetCode}</td></tr>
+                                </table>
+                            </div>
+
+                            <p class="text-center text-[10px] text-yellow-500 font-bold tracking-widest mt-2 drop-shadow-[0_0_2px_rgba(234,179,8,0.5)]">${isZH ? '继续操作前，请核实书名是否与照片一致。' : 'VERIFY SPINE LABEL MATCHES BEFORE PROCEEDING.'}</p>
+                        `,
+                        btnText: isZH ? '> 目标物已获取' : '> ASSET ACQUIRED', 
+                        btnClass: 'cyber-btn-red'
+                    };
+                case 5:
+                    return {
+                        html: `
+                            <h2 class="text-xs text-slate-200 tracking-widest font-bold mb-4">${isZH ? '提取成功' : 'EXTRACTION SUCCESSFUL'}<br><span class="text-[10px] text-slate-500">${isZH ? '任务完成 • 所有目标已达成' : 'MISSION COMPLETE • ALL OBJECTIVES CLEARED'}</span></h2>
+                            
+                            <div class="p-3 cyber-border-green rounded-md bg-[#061e12] mb-4">
+                                <p class="text-[12px] cyber-text-green font-bold flex items-center gap-2">✓✓ ${isZH ? '任务完成' : 'MISSION COMPLETE'}</p>
+                                <p class="text-[10px] text-green-200/60 mt-1">${isZH ? '目标物已获取。所有目标已达成。' : 'Asset secured. All objectives cleared.'}</p>
+                            </div>
+                            
+                            <div class="p-2 border border-slate-700/50 rounded bg-[#0f172a] mb-4 text-center">
+                                <span class="text-slate-400 text-[9px]">[ ${isZH ? '身份解锁：' : 'AGENT STATUS: '}</span><span class="cyber-text-cyan text-[10px] font-bold">${isZH ? '资深领航员' : 'PROFICIENT NAVIGATOR'}</span><span class="text-slate-400 text-[9px]"> ]</span><br>
+                                <span class="text-[7px] text-slate-600 tracking-widest mt-1 inline-block">${isZH ? '获得经验值 • 任务徽章已解锁' : 'XP GAINED • MISSION BADGE UNLOCKED'}</span>
+                            </div>
+
+                            <p class="text-[9px] cyber-text-purple font-bold mb-1 tracking-widest flex items-center gap-1.5">🔓 ${isZH ? '奖励：秘密情报' : 'REWARD: PRO-LEVEL INTEL'}</p>
+                            <div class="p-3 cyber-border-purple rounded-md bg-[#1a0b2e] mb-6">
+                                <p class="text-[10px] text-purple-300 font-bold mb-2">${isZH ? '系统秘密已解锁：' : 'SYSTEM SECRET UNLOCKED:'}</p>
+                                <p class="text-[10px] text-purple-200/80 leading-relaxed font-mono-cyber">
+                                    ${isZH ? '前往第1楼并走向入口<br>自助借书机隐藏在入口的左侧。<br><span class="font-bold text-purple-300 text-[11px]">请走侧廊可节省 3-5 分钟。</span>' : 'Go to LEVEL 1 and proceed to the entrance<br>The Loaning Kiosk is hidden to the<br><span class="font-bold text-purple-300 text-[11px]">LEFT of the entrance.</span><br>Save 3-5 minutes. Use the side corridor.'}
+                                </p>
+                            </div>
+
+                            <p class="text-[8px] text-slate-500 tracking-widest mb-2">${isZH ? '最终统计' : 'SESSION STATS'}</p>
+                            <div class="grid grid-cols-3 gap-2 mb-2">
+                                <div class="bg-[#0f172a] border border-slate-800 rounded p-2 flex flex-col items-center justify-center">
+                                    <span class="text-lg cyber-text-green font-bold">2/2</span>
+                                    <span class="text-[7px] text-slate-500 tracking-wider">${isZH ? '路径' : 'WAYPOINTS'}</span>
+                                </div>
+                                <div class="bg-[#0f172a] border border-slate-800 rounded p-2 flex flex-col items-center justify-center">
+                                    <span class="text-lg cyber-text-green font-bold">3</span>
+                                    <span class="text-[7px] text-slate-500 tracking-wider">${isZH ? '秘密情报' : 'INTEL'}</span>
+                                </div>
+                                <div class="bg-[#0f172a] border border-slate-800 rounded p-2 flex flex-col items-center justify-center">
+                                    <span class="text-lg cyber-text-green font-bold">A+</span>
+                                    <span class="text-[7px] text-slate-500 tracking-wider">${isZH ? '评分' : 'GRADE'}</span>
+                                </div>
+                            </div>
+                            <p class="text-[9px] text-slate-600 mt-2">// ${isZH ? '感谢使用 Narrative Navigator.' : 'Thank you for using Narrative Navigator.'}</p>
+                        `,
+                        btnText: isZH ? '> 结束任务并退出' : '> END MISSION & EXIT', 
+                        btnClass: 'cyber-btn-green'
+                    };
+            }
+        }
+
+        const screenContent = document.getElementById('screen-content');
+        const actionBtn = document.getElementById('action-btn');
+        const progressBar = document.getElementById('progress-bar');
+        const progressLabels = document.getElementById('progress-labels');
+        const progressTitle = document.getElementById('progress-title');
+        const lockIcon = document.getElementById('lock-icon');
+        const backBtn = document.getElementById('back-btn');
+        const backText = document.getElementById('back-text');
+        const timeDisplay = document.getElementById('time-display');
+        const pageIndicator = document.getElementById('page-indicator');
+        const langBtn = document.getElementById('lang-btn');
+
+        function renderScreen() {
+            const data = getScreenData(currentStep);
+            const isZH = currentLang === 'ZH';
+            
+            // 顶部退回按钮显示控制
+            if (currentStep > 0) {
+                backBtn.classList.remove('hidden');
+                timeDisplay.classList.add('hidden');
+                backText.innerText = isZH ? '返回' : 'BACK';
+            } else {
+                backBtn.classList.add('hidden');
+                timeDisplay.classList.remove('hidden');
+            }
+
+            screenContent.style.opacity = 0;
+            setTimeout(() => {
+                screenContent.innerHTML = data.html;
+                screenContent.style.opacity = 1;
+                
+                // 给输入框绑定更新事件
+                if(currentStep === 0) {
+                    const inputEl = document.getElementById('init-input');
+                    if(inputEl) {
+                        inputEl.addEventListener('input', (e) => {
+                            globalTargetCode = e.target.value;
+                        });
+                    }
+                }
+            }, 150);
+
+            actionBtn.className = `w-full py-4 rounded text-sm tracking-widest uppercase mt-2 ${data.btnClass}`;
+            actionBtn.innerText = data.btnText;
+            pageIndicator.innerText = `${currentStep + 1} / 6`;
+
+            // 进度条渲染
+            let dotsHTML = '';
+            for(let i=0; i<6; i++) {
+                const isActive = i <= currentStep;
+                dotsHTML += `<div class="progress-dot ${isActive ? 'active' : ''}"></div>`;
+                if(i < 5) {
+                    const isLineActive = i < currentStep;
+                    dotsHTML += `<div class="progress-line ${isLineActive ? 'active' : ''}"></div>`;
+                }
+            }
+            progressBar.innerHTML = dotsHTML;
+
+            // 进度条标签渲染翻译
+            const labels = isZH ? 
+                ['输入', '简介', '线索 1', '线索 2', '目标', '完成'] : 
+                ['INPUT', 'BRIEF', 'PING 1', 'PING 2', 'TARGET', 'DONE'];
+            progressLabels.innerHTML = labels.map(l => `<span>${l}</span>`).join('');
+            progressTitle.innerText = isZH ? '进度提取' : 'EXTRACTION PROGRESS';
+
+            // 百分比与锁动画
+            const percentage = Math.round((currentStep / 5) * 100);
+            const progressText = document.getElementById('progress-text');
+            progressText.innerText = percentage + '%';
+
+            if (currentStep < 5) {
+                lockIcon.innerText = '🔒';
+                lockIcon.className = 'text-sm transition-colors duration-300 text-slate-600';
+                progressText.className = 'text-[10px] font-bold tracking-widest text-cyan-500 mb-[2px] transition-colors';
+            } else {
+                lockIcon.innerText = '🔓';
+                lockIcon.className = 'text-lg text-[#4ade80] animate-[unlockBurst_0.6s_ease-out_forwards] drop-shadow-[0_0_8px_rgba(74,222,128,0.8)]';
+                progressText.className = 'text-[12px] font-bold tracking-widest text-[#4ade80] mb-[2px] transition-colors drop-shadow-[0_0_5px_rgba(74,222,128,0.5)]';
+            }
+        }
+
+        // 初始化
+        renderScreen();
+
+        // 语言切换逻辑
+        langBtn.addEventListener('click', () => {
+            currentLang = currentLang === 'ZH' ? 'EN' : 'ZH';
+            renderScreen();
+        });
+
+        // 返回上一层
+        backBtn.addEventListener('click', () => {
+            if (currentStep > 0) {
+                currentStep--;
+                renderScreen();
+            }
+        });
+
+        // 进入下一层
+        actionBtn.addEventListener('click', () => {
+            if (currentStep === 0) {
+                const inputEl = document.getElementById('init-input');
+                
+                // 表单校验：如果为空，则阻止进入下一步，并给予红框警告和动画反馈
+                if (!inputEl || inputEl.value.trim() === "") {
+                    inputEl.parentElement.parentElement.classList.add('border', 'border-red-500', 'bg-red-950/30');
+                    inputEl.placeholder = currentLang === 'ZH' ? '必须输入编号才能继续！' : 'Input required to proceed!';
+                    
+                    // 添加轻微的拒绝抖动特效
+                    const panel = inputEl.parentElement.parentElement;
+                    panel.style.transition = 'transform 0.1s';
+                    panel.style.transform = 'translateX(5px)';
+                    setTimeout(() => panel.style.transform = 'translateX(-5px)', 100);
+                    setTimeout(() => panel.style.transform = 'translateX(5px)', 200);
+                    setTimeout(() => panel.style.transform = 'translateX(0)', 300);
+                    
+                    return; // 核心逻辑：中断函数，禁止前进
+                }
+                
+                // 记录用户成功输入的内容
+                globalTargetCode = inputEl.value.trim().toUpperCase();
+                
+                let parts = globalTargetCode.split(' ');
+                if (parts.length >= 2 && isNaN(parts[0])) {
+                    globalBaseCode = parts[0] + ' ' + parts[1];
+                } else {
+                    globalBaseCode = parts[0];
+                }
+            }
+
+            if (currentStep < 5) {
+                currentStep++;
+                renderScreen();
+            } else {
+                currentStep = 0;
+                globalTargetCode = "";
+                renderScreen();
+            }
+        });
+    </script>
+</body>
+</html>
