@@ -8,12 +8,12 @@
     <style>
         body, html {
             margin: 0; padding: 0;
-            width: 100%; height: 100dvh; /* 适配移动端动态视口高度 */
+            width: 100%; height: 100dvh;
             overflow: hidden;
             background-color: #050a14;
             font-family: 'Segoe UI', system-ui, sans-serif;
             user-select: none;
-            -webkit-tap-highlight-color: transparent; /* 移除手机点击闪烁 */
+            -webkit-tap-highlight-color: transparent;
         }
 
         /* ----- 游戏化 UI 专属样式 ----- */
@@ -58,44 +58,49 @@
             100% { transform: scale(1.2) rotate(0deg); color: #4ade80; }
         }
 
+        /* 隐藏动画类 */
+        .fade-enter { opacity: 0; transform: translateY(10px); transition: all 0.4s ease-out; }
+        .fade-enter-active { opacity: 1; transform: translateY(0); }
+
         .progress-dot { width: 10px; height: 10px; border-radius: 50%; background-color: #334155; position: relative; z-index: 2; transition: all 0.3s; }
         .progress-dot.active { background-color: #22d3ee; box-shadow: 0 0 8px #22d3ee; }
         .progress-line { height: 2px; background-color: #334155; flex-grow: 1; margin: 0 -2px; z-index: 1; transition: all 0.3s; }
         .progress-line.active { background-color: #22d3ee; }
         
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        /* 赛博朋克风格滚动条 */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.2); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: rgba(34, 211, 238, 0.3); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(34, 211, 238, 0.6); }
     </style>
 </head>
 <body>
 
-    <!-- 主交互界面：适配了全宽度移动屏以及居中限宽桌面屏 -->
     <div class="absolute inset-0 z-10 flex justify-center bg-[#050a14] text-slate-300 font-mono-cyber overflow-hidden">
         <div class="scanline"></div>
         <div class="relative w-full md:max-w-[400px] h-full cyber-panel flex flex-col p-4 sm:p-5 shadow-2xl md:border-x border-[#1e293b]">
             
-            <!-- 顶部状态栏、退回按钮及语言切换 -->
-            <div class="flex justify-between items-center text-[10px] mb-4 text-slate-500 h-4 relative">
+            <!-- 顶部状态栏、退回按钮及语言切换 (保持小字体) -->
+            <div class="flex justify-between items-center text-[10px] mb-4 text-slate-500 h-4 relative shrink-0">
                 <div class="w-16 flex items-center">
-                    <span id="time-display">9:41</span>
+                    <span id="time-display" class="font-bold">9:41</span>
                     <button id="back-btn" class="hidden text-cyan-400 hover:text-cyan-200 font-bold tracking-widest transition-colors z-20 focus:outline-none py-1">
                         &lt; <span id="back-text">BACK</span>
                     </button>
                 </div>
                 
-                <!-- 语言切换按钮 -->
-                <button id="lang-btn" class="absolute left-1/2 -translate-x-1/2 border border-cyan-800 text-cyan-500 bg-cyan-950/30 px-3 py-1 rounded text-[8px] font-bold tracking-widest hover:bg-cyan-900/50 transition-colors z-20 focus:outline-none">
+                <button id="lang-btn" class="absolute left-1/2 -translate-x-1/2 border border-cyan-800 text-cyan-500 bg-cyan-950/30 px-2.5 py-0.5 rounded text-[8px] font-bold tracking-widest hover:bg-cyan-900/50 transition-colors z-20 focus:outline-none">
                     EN / 中
                 </button>
 
-                <span class="cyber-text-cyan tracking-widest">III 100%</span>
+                <span class="cyber-text-cyan tracking-widest font-bold">III 100%</span>
             </div>
 
             <!-- 动态内容注入 -->
-            <div id="screen-content" class="flex-1 flex flex-col overflow-y-auto pb-28 no-scrollbar transition-opacity duration-300">
+            <div id="screen-content" class="flex-1 flex flex-col overflow-y-auto pb-36 pr-1 transition-opacity duration-300">
             </div>
 
-            <!-- 底部导航 & 进度 -->
+            <!-- 底部导航 & 进度 (保持紧凑比例) -->
             <div class="absolute bottom-4 sm:bottom-5 left-4 sm:left-5 right-4 sm:right-5 bg-[#0b1320] pt-2">
                 <div class="mb-4 relative">
                     <div class="absolute -top-7 left-1 flex items-end z-10">
@@ -118,7 +123,7 @@
         </div>
     </div>
 
-    <!-- 全局图片放大模态框 (Image Lightbox) -->
+    <!-- 全局图片放大模态框 -->
     <div id="image-modal" class="fixed inset-0 z-[100] hidden bg-[#050a14]/95 backdrop-blur-md flex items-center justify-center opacity-0 transition-opacity duration-300" onclick="closeImageModal()">
         <button class="absolute top-6 right-6 text-slate-400 hover:text-cyan-400 p-2 z-50 transition-colors focus:outline-none bg-black/50 rounded-full">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -126,27 +131,24 @@
         <img id="modal-image" src="" class="max-w-[95%] max-h-[85vh] object-contain scale-95 transition-transform duration-300 shadow-[0_0_30px_rgba(34,211,238,0.15)] border border-slate-700/50 rounded" alt="Enlarged view" onclick="event.stopPropagation()">
     </div>
 
-    <!-- ==================== 逻辑脚本 ==================== -->
     <script>
         let globalTargetCode = ""; 
         let globalBaseCode = "NA 997";
         let currentStep = 0;
         let currentLang = 'ZH'; 
+        let isCodeValidated = false; 
 
-        // 打开全屏图片逻辑
         function openImageModal(src) {
             const imageModal = document.getElementById('image-modal');
             const modalImage = document.getElementById('modal-image');
             modalImage.src = src;
             imageModal.classList.remove('hidden');
-            // 触发回流重绘以执行 CSS 过渡
             void imageModal.offsetWidth;
             imageModal.classList.remove('opacity-0');
             modalImage.classList.remove('scale-95');
             modalImage.classList.add('scale-100');
         }
 
-        // 关闭全屏图片逻辑
         function closeImageModal() {
             const imageModal = document.getElementById('image-modal');
             const modalImage = document.getElementById('modal-image');
@@ -158,81 +160,107 @@
             }, 300);
         }
 
+        // 顶部进度条组件
+        function getTopProgressBar(pct, isZH) {
+            const colorClass = pct === 100 ? 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.6)]' : 'bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.6)]';
+            const textColorClass = pct === 100 ? 'text-green-400' : 'cyber-text-cyan';
+            return `
+                <div class="mb-4">
+                    <div class="flex justify-between items-end mb-2">
+                        <span class="text-[10px] text-slate-500 tracking-widest">${isZH ? '进度提取' : 'EXTRACTION PROGRESS'}</span>
+                        <span class="text-xs ${textColorClass} font-bold tracking-wider">${pct}%</span>
+                    </div>
+                    <div class="w-full h-1.5 bg-slate-800/80 rounded overflow-hidden">
+                        <div class="h-full ${colorClass} transition-all duration-700" style="width: ${pct}%;"></div>
+                    </div>
+                </div>
+            `;
+        }
+
         function getScreenData(step) {
             const isZH = currentLang === 'ZH';
 
             switch(step) {
                 case 0:
+                    const isInfoHidden = isCodeValidated ? 'fade-enter-active' : 'hidden';
+                    const btnText0 = isCodeValidated ? (isZH ? '> 确认并继续' : '> CONFIRM & PROCEED') : (isZH ? '> 开始搜索' : '> START SEARCH');
+                    const placeholderText = isZH ? '请填写您需要查询的编号' : 'Please fill in the book number.';
+                    
                     return {
                         html: `
                             <h2 class="text-xs cyber-text-cyan tracking-widest font-bold mb-4">NARRATIVE NAVIGATOR<br><span class="text-[10px] text-slate-500">${isZH ? '图书馆路线查找系统 v2.1' : 'LIBRARY WAYFINDING SYSTEM v2.1'}</span></h2>
                             
                             <p class="text-[10px] text-slate-400 mb-2 animate-pulse">// ${isZH ? '请输入要查找的书籍编号' : 'ENTER CALL NUMBER TO BEGIN'}</p>
-                            <div class="p-3 cyber-border-cyan rounded-md bg-[#0a111a] mb-4 shadow-[0_0_15px_rgba(34,211,238,0.15)] flex flex-col justify-center min-h-[70px]">
+                            <div class="p-3 cyber-border-cyan rounded-md bg-[#0a111a] mb-4 shadow-[0_0_15px_rgba(34,211,238,0.15)] flex flex-col justify-center min-h-[70px] transition-all duration-200">
                                 <div class="flex items-center">
                                     <span class="text-lg cyber-text-cyan font-bold mr-3">></span>
-                                    <input type="text" id="init-input" value="${globalTargetCode}" class="w-full bg-transparent text-base sm:text-lg cyber-text-cyan font-bold tracking-widest outline-none border-none placeholder:text-cyan-900/50 placeholder:text-[10px] placeholder:font-normal placeholder:tracking-normal" placeholder="${isZH ? '请填写您需要查询的编号' : 'Please fill in the book number.'}" autocomplete="off"/>
+                                    <input type="text" id="init-input" value="${globalTargetCode}" class="w-full bg-transparent text-base sm:text-lg cyber-text-cyan font-bold tracking-widest outline-none border-none placeholder:text-cyan-900/50 placeholder:text-[10px] placeholder:font-normal placeholder:tracking-normal" placeholder="${placeholderText}" autocomplete="off"/>
                                 </div>
-                                <span class="text-[8px] text-slate-500 ml-6 mt-1">${isZH ? '书籍编号' : 'CALL NUMBER'}</span>
+                                <span class="text-[8px] text-slate-500 ml-6 mt-1">${isZH ? '索书号' : 'CALL NUMBER'}</span>
                             </div>
 
                             <div class="mb-4">
                                 <p class="text-[8px] text-slate-500 mb-1 tracking-widest">${isZH ? '搜索记录：' : 'RECENT:'}</p>
                                 <div class="flex flex-wrap gap-2">
-                                    <div class="border border-slate-700 bg-[#0f172a] rounded px-2 py-1.5 text-[8px] text-slate-400">720.95957 SIN</div>
-                                    <div class="border border-slate-700 bg-[#0f172a] rounded px-2 py-1.5 text-[8px] text-slate-400">330.122 TAN</div>
-                                    <div class="border border-slate-700 bg-[#0f172a] rounded px-2 py-1.5 text-[8px] text-slate-400">005.13 KNU</div>
+                                    <div class="border border-slate-700 bg-[#0f172a] rounded px-2 py-1.5 text-[8px] text-slate-400 cursor-pointer hover:bg-slate-800 transition-colors" onclick="document.getElementById('init-input').value='NA 997 R64 RIC'; document.getElementById('init-input').dispatchEvent(new Event('input'))">NA 997 R64 RIC</div>
+                                    <div class="border border-slate-700 bg-[#0f172a] rounded px-2 py-1.5 text-[8px] text-slate-400 cursor-pointer hover:bg-slate-800 transition-colors" onclick="document.getElementById('init-input').value='330.122 TAN'; document.getElementById('init-input').dispatchEvent(new Event('input'))">330.122 TAN</div>
+                                    <div class="border border-slate-700 bg-[#0f172a] rounded px-2 py-1.5 text-[8px] text-slate-400 cursor-pointer hover:bg-slate-800 transition-colors" onclick="document.getElementById('init-input').value='005.13 KNU'; document.getElementById('init-input').dispatchEvent(new Event('input'))">005.13 KNU</div>
                                 </div>
                             </div>
 
-                            <div class="p-3 cyber-border-orange rounded-md bg-[#1a150b] mb-4">
-                                <p class="text-[10px] cyber-text-orange font-bold mb-1">${isZH ? '情报发现' : 'BONUS INTEL DETECTED'}</p>
-                                <p class="text-[10px] text-orange-200/60 leading-relaxed">${isZH ? '完成任务以解锁隐藏在提取点的专业图书馆机密' : 'Complete the mission to unlock Pro-Library secrets hidden at the extraction point.'}</p>
-                            </div>
+                            <!-- 情报模块，只有点击开始搜索并通过验证后才会显示 -->
+                            <div id="info-modules" class="fade-enter ${isInfoHidden}">
+                                <div class="p-3 cyber-border-orange rounded-md bg-[#1a150b] mb-4">
+                                    <p class="text-[10px] cyber-text-orange font-bold mb-1">${isZH ? '情报发现' : 'BONUS INTEL DETECTED'}</p>
+                                    <p class="text-[10px] text-orange-200/60 leading-relaxed">${isZH ? '完成任务以解锁隐藏在提取点的专业图书馆机密' : 'Complete the mission to unlock Pro-Library secrets hidden at the extraction point.'}</p>
+                                </div>
 
-                            <div class="p-3 cyber-border-blue rounded-md bg-[#0b121e]">
-                                <p class="text-[10px] cyber-text-cyan font-bold mb-2">${isZH ? '如何读取书籍编号' : 'HOW TO READ YOUR CALL NUMBER'}</p>
-                                <table class="text-[10px] text-slate-400 w-full leading-relaxed">
-                                    <tr><td class="w-16 pb-1">NA</td><td>${isZH ? '主题（建筑学）' : 'Subject (Architecture)'}</td></tr>
-                                    <tr><td class="pb-1">997 R64</td><td>${isZH ? '分类编号' : 'Subdivision'}</td></tr>
-                                    <tr><td class="pb-1">RIC</td><td>${isZH ? '作者简写' : 'Author code'}</td></tr>
-                                </table>
+                                <div class="p-3 cyber-border-blue rounded-md bg-[#0b121e]">
+                                    <p class="text-[10px] cyber-text-cyan font-bold mb-2">${isZH ? '如何读取书籍编号' : 'HOW TO READ YOUR CALL NUMBER'}</p>
+                                    <table class="text-[10px] text-slate-400 w-full leading-relaxed">
+                                        <tr><td class="w-16 pb-1">NA</td><td>${isZH ? '主题（建筑学）' : 'Subject (Architecture)'}</td></tr>
+                                        <tr><td class="pb-1">997 R64</td><td>${isZH ? '分类编号' : 'Subdivision'}</td></tr>
+                                        <tr><td class="pb-1">RIC</td><td>${isZH ? '作者简写' : 'Author code'}</td></tr>
+                                    </table>
+                                </div>
                             </div>
                         `,
-                        btnText: isZH ? '> 开始搜索' : '> START SEARCH', 
+                        btnText: btnText0, 
                         btnClass: 'cyber-btn'
                     };
                 case 1:
+                    // 对屏幕2(步骤1)进行比例压缩，避免遮挡奖励文字
                     return {
                         html: `
-                            <h2 class="text-xs cyber-text-cyan tracking-widest font-bold mb-4">${isZH ? '目标已识别' : 'TARGET IDENTIFIED'}<br><span class="text-[10px] text-slate-500">${isZH ? '路径已计算 • 准备执行提取' : 'ROUTE CALCULATED - READY TO EXTRACT'}</span></h2>
+                            <h2 class="text-xs cyber-text-cyan tracking-widest font-bold mb-3">${isZH ? '目标已识别' : 'TARGET IDENTIFIED'}<br><span class="text-[10px] text-slate-500">${isZH ? '路径已计算 • 准备执行提取' : 'ROUTE CALCULATED - READY TO EXTRACT'}</span></h2>
                             
-                            <div class="p-3 border border-slate-700 rounded-md bg-[#0f172a] mb-4 min-h-[60px] flex flex-col justify-center">
-                                <p class="text-[8px] text-slate-500 mb-1">${isZH ? '书籍编号' : 'CALL NO.'}</p>
+                            <div class="p-2.5 border border-slate-700 rounded-md bg-[#0f172a] mb-3 min-h-[50px] flex flex-col justify-center">
+                                <p class="text-[8px] text-slate-500 mb-0.5">${isZH ? '书籍编号' : 'CALL NO.'}</p>
                                 <p class="text-base text-slate-200 font-bold tracking-wider">${globalTargetCode}</p>
                             </div>
 
-                            <p class="text-[11px] text-slate-400 leading-relaxed mb-4">${isZH ? '请跟随系统指引前往 <span class="text-white font-bold">档案区</span>。<br>我们已为你规划最优路径。' : 'Follow the system pings to find the <span class="text-white font-bold">Archives</span>.<br>We\'ve mapped the quickest route.'}</p>
+                            <p class="text-[10px] text-slate-400 leading-relaxed mb-3">${isZH ? '请跟随系统指引前往 <span class="text-white font-bold">档案区</span>。<br>我们已为你规划最优路径。' : 'Follow the system pings to find the <span class="text-white font-bold">Archives</span>.<br>We\'ve mapped the quickest route.'}</p>
                             
-                            <div class="p-3 cyber-border-purple rounded-md bg-[#1a0b2e] mb-4">
+                            <div class="p-2.5 cyber-border-purple rounded-md bg-[#1a0b2e] mb-3">
                                 <p class="text-[10px] cyber-text-purple font-bold mb-1">${isZH ? '发现情报' : 'BONUS INTEL DETECTED'}</p>
                                 <p class="text-[10px] text-purple-200/60">${isZH ? '完成任务以解锁<br><span class="font-bold">>>> 图书馆隐藏秘密 <<<</span>' : 'Complete extraction to unlock<br><span class="font-bold">>>> PRO-LIBRARY SECRETS <<<</span>'}</p>
                             </div>
 
-                            <h3 class="text-[10px] text-slate-500 mb-2 tracking-widest">${isZH ? '任务步骤' : 'MISSION STEPS'}</h3>
-                            <div class="space-y-2">
-                                <div class="p-2.5 bg-[#0f172a] rounded border border-slate-800 flex flex-col gap-1">
+                            <h3 class="text-[10px] text-slate-500 mb-1.5 tracking-widest">${isZH ? '任务步骤' : 'MISSION STEPS'}</h3>
+                            <div class="space-y-1.5">
+                                <div class="p-2 bg-[#0f172a] rounded border border-slate-800 flex flex-col gap-0.5">
                                     <span class="text-[10px] cyber-text-cyan font-bold">${isZH ? '线索 #1' : 'PING #1'}</span>
                                     <span class="text-[10px] text-slate-400">${isZH ? '前往 H-N 区域书架' : 'Navigate to the shelf labelled H-N'}</span>
                                 </div>
-                                <div class="p-2.5 bg-[#0f172a] rounded border border-slate-800 flex flex-col gap-1">
+                                <div class="p-2 bg-[#0f172a] rounded border border-slate-800 flex flex-col gap-0.5">
                                     <span class="text-[10px] cyber-text-cyan font-bold">${isZH ? '线索 #2' : 'PING #2'}</span>
                                     <span class="text-[10px] text-slate-400">${isZH ? `找到放置 ${globalBaseCode.split(' ')[0]} 分类的书架` : `Locate shelf ${globalBaseCode.split(' ')[0]}`}</span>
                                 </div>
-                                <div class="p-2.5 bg-[#0f172a] rounded border border-slate-800 flex flex-col gap-1">
+                                <div class="p-2 bg-[#0f172a] rounded border border-slate-800 flex flex-col gap-0.5">
                                     <span class="text-[10px] cyber-text-orange font-bold">${isZH ? '提取' : 'EXTRACT'}</span>
+                                    <span class="text-[10px] text-slate-400">${isZH ? '从玻璃书架提取目标物' : 'Retrieve asset from glass shelf'}</span>
                                 </div>
-                                <div class="p-2.5 bg-[#0f172a] rounded border border-slate-800 flex flex-col gap-1">
+                                <div class="p-2 bg-[#0f172a] rounded border border-slate-800 flex flex-col gap-0.5">
                                     <span class="text-[10px] cyber-text-purple font-bold">${isZH ? '奖励' : 'REWARD'}</span>
                                     <span class="text-[10px] text-slate-400">${isZH ? '解锁图书馆秘密情报' : 'Unlock Pro-Level Intel'}</span>
                                 </div>
@@ -246,15 +274,13 @@
                         html: `
                             <h2 class="text-xs text-slate-200 tracking-widest font-bold mb-4">${isZH ? '系统指引 #1' : 'SYSTEM PING #1'}<br><span class="text-[10px] text-slate-500">${isZH ? '第一段路径 • 三楼' : 'WAYPOINT ALPHA • LEVEL 8 LIFT LOBBY'}</span></h2>
                             
-                            <!-- 本地图片 1.JPG - 支持点击放大 -->
+                            ${getTopProgressBar(25, isZH)}
+
                             <div class="relative w-full h-40 border border-slate-700 bg-[#0a0f1a] rounded mb-4 overflow-hidden flex items-center justify-center cursor-pointer group" onclick="openImageModal('1.JPG')">
                                 <img src="1.JPG" class="opacity-80 object-cover w-full h-full group-hover:opacity-100 transition-opacity duration-300" alt="Location Photo">
-                                
-                                <!-- 悬浮放大图标反馈 -->
                                 <div class="absolute inset-0 bg-[#0a111a]/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 backdrop-blur-[1px]">
                                     <svg class="w-8 h-8 text-cyan-400 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path></svg>
                                 </div>
-                                
                                 <div class="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-cyan-400 z-20 pointer-events-none"></div>
                                 <div class="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-cyan-400 z-20 pointer-events-none"></div>
                             </div>
@@ -283,12 +309,10 @@
                         html: `
                             <h2 class="text-xs text-slate-200 tracking-widest font-bold mb-4">${isZH ? '链接已确认' : 'HANDSHAKE CONFIRMED'}<br><span class="text-[10px] text-slate-500">${isZH ? '路线数据同步中 • 50% 已完成' : 'SYNCING ROUTE DATA • 50% COMPLETE'}</span></h2>
                             
+                            ${getTopProgressBar(50, isZH)}
+
                             <div class="p-3 cyber-border-green rounded-md bg-[#061e12] mb-4">
                                 <p class="text-[11px] cyber-text-green font-bold flex items-center gap-2">✓ ${isZH ? '第一段路径解锁成功' : 'WAYPOINT ALPHA CLEARED'}</p>
-                                <div class="flex items-center gap-2 mt-2">
-                                    <span class="text-[8px] text-slate-500">${isZH ? '同步: 50%' : 'SYNCING: 50%'}</span>
-                                    <div class="h-1.5 w-full max-w-[120px] bg-green-900/50 rounded overflow-hidden"><div class="h-full bg-green-500 w-1/2"></div></div>
-                                </div>
                             </div>
 
                             <div class="mb-4">
@@ -318,16 +342,15 @@
                         html: `
                             <h2 class="text-xs text-slate-200 tracking-widest font-bold mb-4">${isZH ? '目标已锁定' : 'TARGET LOCKED'}<br><span class="text-[10px] text-slate-500">${isZH ? '最终提取 • 书架 ' : 'FINAL EXTRACTION • SHELF '}${shelfCode}</span></h2>
                             
-                            <!-- 本地图片 2.JPG 和 3.JPG (左右布局) - 支持分别点击放大 -->
+                            ${getTopProgressBar(75, isZH)}
+
                             <div class="relative w-full h-48 border border-slate-700 bg-[#0a0f1a] rounded mb-4 flex overflow-hidden">
-                                <!-- 左图 -->
                                 <div class="w-1/2 h-full border-r border-slate-700 relative group cursor-pointer" onclick="openImageModal('2.JPG')">
                                     <img src="2.JPG" class="opacity-80 object-cover w-full h-full group-hover:opacity-100 transition-opacity duration-300" alt="Shelf Left">
                                     <div class="absolute inset-0 bg-[#0a111a]/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 backdrop-blur-[1px]">
                                         <svg class="w-6 h-6 text-cyan-400 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path></svg>
                                     </div>
                                 </div>
-                                <!-- 右图 -->
                                 <div class="w-1/2 h-full relative group cursor-pointer" onclick="openImageModal('3.JPG')">
                                     <img src="3.JPG" class="opacity-80 object-cover w-full h-full group-hover:opacity-100 transition-opacity duration-300" alt="Shelf Right">
                                     <div class="absolute inset-0 bg-[#0a111a]/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 backdrop-blur-[1px]">
@@ -343,7 +366,7 @@
                             <div class="p-3 cyber-border-red rounded-md bg-[#2a0b0b] mb-6">
                                 <table class="text-[10px] text-red-200 w-full leading-loose">
                                     <tr><td class="w-12 font-bold text-red-300">${isZH ? '书架:' : 'SHELF:'}</td><td class="font-bold">${shelfCode}</td></tr>
-                                    <tr><td class="w-12 text-red-400">${isZH ? '书名:' : 'SPINE:'}</td><td class="text-red-400">Architects from House to the City</td></tr>
+                                    <tr><td class="w-12 text-red-400 align-top">${isZH ? '书名:' : 'SPINE:'}</td><td class="text-red-400">Architects from House to the City</td></tr>
                                     <tr><td class="w-12 text-red-400">${isZH ? '索书号:' : 'CODE:'}</td><td class="text-red-400 break-words">${globalTargetCode}</td></tr>
                                 </table>
                             </div>
@@ -358,9 +381,11 @@
                         html: `
                             <h2 class="text-xs text-slate-200 tracking-widest font-bold mb-4">${isZH ? '提取成功' : 'EXTRACTION SUCCESSFUL'}<br><span class="text-[10px] text-slate-500">${isZH ? '任务完成 • 所有目标已达成' : 'MISSION COMPLETE • ALL OBJECTIVES CLEARED'}</span></h2>
                             
+                            ${getTopProgressBar(100, isZH)}
+
                             <div class="p-3 cyber-border-green rounded-md bg-[#061e12] mb-4">
-                                <p class="text-[12px] cyber-text-green font-bold flex items-center gap-2">✓✓ ${isZH ? '任务完成' : 'MISSION COMPLETE'}</p>
-                                <p class="text-[10px] text-green-200/60 mt-1">${isZH ? '目标物已获取。所有目标已达成。' : 'Asset secured. All objectives cleared.'}</p>
+                                <p class="text-[12px] cyber-text-green font-bold flex items-center gap-2 mb-1">✓✓ ${isZH ? '任务完成' : 'MISSION COMPLETE'}</p>
+                                <p class="text-[10px] text-green-200/60">${isZH ? '目标物已获取。所有目标已达成。' : 'Asset secured. All objectives cleared.'}</p>
                             </div>
                             
                             <div class="p-2 border border-slate-700/50 rounded bg-[#0f172a] mb-4 text-center">
@@ -380,15 +405,15 @@
                             <div class="grid grid-cols-3 gap-2 mb-2">
                                 <div class="bg-[#0f172a] border border-slate-800 rounded p-2 flex flex-col items-center justify-center">
                                     <span class="text-lg cyber-text-green font-bold">2/2</span>
-                                    <span class="text-[7px] text-slate-500 tracking-wider">${isZH ? '路径' : 'WAYPOINTS'}</span>
+                                    <span class="text-[7px] text-slate-500 tracking-wider mt-0.5">${isZH ? '路径' : 'WAYPOINTS'}</span>
                                 </div>
                                 <div class="bg-[#0f172a] border border-slate-800 rounded p-2 flex flex-col items-center justify-center">
                                     <span class="text-lg cyber-text-green font-bold">3</span>
-                                    <span class="text-[7px] text-slate-500 tracking-wider">${isZH ? '秘密情报' : 'INTEL'}</span>
+                                    <span class="text-[7px] text-slate-500 tracking-wider mt-0.5">${isZH ? '秘密情报' : 'INTEL'}</span>
                                 </div>
                                 <div class="bg-[#0f172a] border border-slate-800 rounded p-2 flex flex-col items-center justify-center">
                                     <span class="text-lg cyber-text-green font-bold">A+</span>
-                                    <span class="text-[7px] text-slate-500 tracking-wider">${isZH ? '评分' : 'GRADE'}</span>
+                                    <span class="text-[7px] text-slate-500 tracking-wider mt-0.5">${isZH ? '评分' : 'GRADE'}</span>
                                 </div>
                             </div>
                             <p class="text-[9px] text-slate-600 mt-2">// ${isZH ? '感谢使用 Narrative Navigator.' : 'Thank you for using Narrative Navigator.'}</p>
@@ -434,12 +459,25 @@
                     if(inputEl) {
                         inputEl.addEventListener('input', (e) => {
                             globalTargetCode = e.target.value;
+                            // 如果用户在验证通过后又去修改输入框，隐藏情报并重置按钮
+                            if(isCodeValidated) {
+                                isCodeValidated = false;
+                                const infoModules = document.getElementById('info-modules');
+                                if (infoModules) {
+                                    infoModules.classList.add('hidden');
+                                    infoModules.classList.remove('fade-enter-active');
+                                }
+                                const actBtn = document.getElementById('action-btn');
+                                if (actBtn) {
+                                    actBtn.innerText = currentLang === 'ZH' ? '> 开始搜索' : '> START SEARCH';
+                                }
+                            }
                         });
                     }
                 }
             }, 150);
 
-            actionBtn.className = `w-full py-3.5 sm:py-4 rounded text-sm tracking-widest uppercase mt-2 focus:outline-none ${data.btnClass}`;
+            actionBtn.className = `w-full py-3.5 sm:py-4 rounded text-sm tracking-widest uppercase mt-3 focus:outline-none ${data.btnClass}`;
             actionBtn.innerText = data.btnText;
             pageIndicator.innerText = `${currentStep + 1} / 6`;
 
@@ -493,6 +531,7 @@
             if (currentStep === 0) {
                 const inputEl = document.getElementById('init-input');
                 
+                // 非空校验：为空则报错并阻止进入下一步
                 if (!inputEl || inputEl.value.trim() === "") {
                     inputEl.parentElement.parentElement.classList.add('border', 'border-red-500', 'bg-red-950/30');
                     inputEl.placeholder = currentLang === 'ZH' ? '必须输入编号才能继续！' : 'Input required to proceed!';
@@ -508,12 +547,18 @@
                 }
                 
                 globalTargetCode = inputEl.value.trim().toUpperCase();
-                
                 let parts = globalTargetCode.split(' ');
                 if (parts.length >= 2 && isNaN(parts[0])) {
                     globalBaseCode = parts[0] + ' ' + parts[1];
                 } else {
                     globalBaseCode = parts[0];
+                }
+
+                // 首次点击，仅执行数据验证与模块展开
+                if (!isCodeValidated) {
+                    isCodeValidated = true;
+                    renderScreen(); 
+                    return; 
                 }
             }
 
@@ -523,6 +568,7 @@
             } else {
                 currentStep = 0;
                 globalTargetCode = "";
+                isCodeValidated = false;
                 renderScreen();
             }
         });
